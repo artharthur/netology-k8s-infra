@@ -1,17 +1,18 @@
-resource "random_password" "minio_ct_root" {
+resource "random_password" "garage_ct_root" {
   length           = 20
   special          = true
   override_special = "_-"
 }
 
-resource "proxmox_virtual_environment_container" "minio" {
+resource "proxmox_virtual_environment_container" "garage" {
   node_name     = var.target_node
   vm_id         = 150
-  description   = "MinIO S3 backend for Terraform state (managed by Terraform)"
-  tags          = ["terraform", "minio", "bootstrap"]
+  description   = "Garage S3 backend for Terraform state"
+  tags          = ["terraform", "garage", "bootstrap"]
   unprivileged  = true
   start_on_boot = true
   started       = true
+  timeout_create = 120
 
   cpu {
     cores = 1
@@ -33,7 +34,7 @@ resource "proxmox_virtual_environment_container" "minio" {
   }
 
   initialization {
-    hostname = "minio"
+    hostname = "garage"
 
     dns {
       servers = ["192.168.1.1", "1.1.1.1"]
@@ -41,14 +42,14 @@ resource "proxmox_virtual_environment_container" "minio" {
 
     ip_config {
       ipv4 {
-        address = var.minio_ip
-        gateway = var.minio_gateway
+        address = var.garage_ip
+        gateway = var.garage_gateway
       }
     }
 
     user_account {
-      keys     = [trimspace(file(var.ssh_public_key_path))]
-      password = random_password.minio_ct_root.result
+      keys     = [trimspace(file(pathexpand(var.ssh_public_key_path)))]
+      password = random_password.garage_ct_root.result
     }
   }
 
@@ -58,7 +59,6 @@ resource "proxmox_virtual_environment_container" "minio" {
   }
 }
 
-output "minio_container_ip" {
-  description = "IP контейнера MinIO"
-  value       = split("/", var.minio_ip)[0]
+output "garage_container_ip" {
+  value = split("/", var.garage_ip)[0]
 }

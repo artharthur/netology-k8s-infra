@@ -4,7 +4,13 @@ variable "proxmox_endpoint" {
 }
 
 variable "proxmox_api_token" {
-  description = "API-токен в формате 'user@realm!tokenid=secret'"
+  description = "API-токен terraform@pve (для операций, доступных токену)"
+  type        = string
+  sensitive   = true
+}
+
+variable "proxmox_ssh_password" {
+  description = "Root-пароль ноды Proxmox (root@pam) для операций, недоступных API-токену: создание LXC"
   type        = string
   sensitive   = true
 }
@@ -33,38 +39,20 @@ variable "lxc_datastore" {
   default     = "local-lvm"
 }
 
-variable "minio_ip" {
-  description = "Статический IP контейнера MinIO (CIDR)"
-  type        = string
-  default     = "192.168.1.150/24"
-}
-
-variable "minio_gateway" {
-  description = "Шлюз сети (роутер)"
-  type        = string
-  default     = "192.168.1.1"
-}
-
-variable "minio_root_user" {
-  description = "MinIO root user (логин админа)"
-  type        = string
-  sensitive   = true
-}
-
-variable "minio_root_password" {
-  description = "MinIO root password (мин. 8 символов)"
-  type        = string
-  sensitive   = true
-}
-
 variable "ssh_public_key_path" {
   description = "Путь к публичному SSH-ключу для доступа в контейнеры"
   type        = string
   default     = "~/.ssh/id_rsa.pub"
 }
 
-variable "proxmox_ssh_password" {
-  description = "Root-пароль ноды Proxmox для SSH-операций, недоступных API-токену"
+variable "garage_ip" {
+  description = "Статический IP контейнера Garage (CIDR)"
   type        = string
-  sensitive   = true
+  default     = "192.168.1.150/24"
+}
+
+variable "garage_gateway" {
+  description = "Шлюз сети"
+  type        = string
+  default     = "192.168.1.1"
 }
