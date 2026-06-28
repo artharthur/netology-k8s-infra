@@ -1,0 +1,10 @@
+---
+- name: Установка Garage S3 (backend для Terraform state)
+  hosts: garage
+  become: true
+  vars:
+    garage_version: "v2.3.0"
+    garage_arch: "x86_64-unknown-linux-musl"
+    garage_bucket: "tf-state"
+  roles:
+    - garage

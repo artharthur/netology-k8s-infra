@@ -1,0 +1,117 @@
+---
+- name: Скачать бинарь Garage
+  ansible.builtin.get_url:
+    url: "https://garagehq.deuxfleurs.fr/_releases/{{ garage_version }}/{{ garage_arch }}/garage"
+    dest: /usr/local/bin/garage
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Создать системного пользователя garage
+  ansible.builtin.user:
+    name: garage
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/garage
+    create_home: false
+
+- name: Создать каталоги данных Garage
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: garage
+    group: garage
+    mode: "0750"
+  loop:
+    - /var/lib/garage
+    - /var/lib/garage/meta
+    - /var/lib/garage/data
+
+- name: Сгенерировать rpc_secret (если ещё нет)
+  ansible.builtin.shell: openssl rand -hex 32
+  register: rpc_secret_cmd
+  args:
+    creates: /etc/garage.toml
+
+- name: Сгенерировать admin_token (если ещё нет)
+  ansible.builtin.shell: openssl rand -base64 32
+  register: admin_token_cmd
+  args:
+    creates: /etc/garage.toml
+
+- name: Установить факты секретов
+  ansible.builtin.set_fact:
+    garage_rpc_secret: "{{ rpc_secret_cmd.stdout | default('') }}"
+    garage_admin_token: "{{ admin_token_cmd.stdout | default('') }}"
+  when: rpc_secret_cmd.stdout is defined and rpc_secret_cmd.stdout | length > 0
+
+- name: Развернуть конфиг garage.toml
+  ansible.builtin.template:
+    src: garage.toml.j2
+    dest: /etc/garage.toml
+    owner: root
+    group: garage
+    mode: "0640"
+  notify: restart garage
+  when: garage_rpc_secret is defined
+
+- name: Развернуть systemd-юнит
+  ansible.builtin.template:
+    src: garage.service.j2
+    dest: /etc/systemd/system/garage.service
+    mode: "0644"
+  notify: restart garage
+
+- name: Запустить и включить Garage
+  ansible.builtin.systemd:
+    name: garage
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Подождать готовности API Garage
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 3900
+    timeout: 30
+
+- name: Получить node id
+  ansible.builtin.command: garage node id -q
+  register: garage_node_id
+  changed_when: false
+
+- name: Назначить layout одной ноде
+  ansible.builtin.command: >
+    garage layout assign {{ garage_node_id.stdout.split('@')[0] }}
+    -z dc1 -c 5G
+  register: layout_assign
+  changed_when: "'No changes' not in layout_assign.stderr"
+  failed_when: layout_assign.rc != 0 and 'already' not in layout_assign.stderr
+
+- name: Применить layout
+  ansible.builtin.command: garage layout apply --version 1
+  register: layout_apply
+  changed_when: "'Layout version' in layout_apply.stdout"
+  failed_when: layout_apply.rc != 0 and 'already' not in (layout_apply.stderr | default(''))
+
+- name: Создать бакет под Terraform state
+  ansible.builtin.command: "garage bucket create {{ garage_bucket }}"
+  register: bucket_create
+  changed_when: "'created' in bucket_create.stdout | default('')"
+  failed_when: bucket_create.rc != 0 and 'already exists' not in (bucket_create.stderr | default(''))
+
+- name: Создать S3 access key для Terraform
+  ansible.builtin.command: "garage key create tf-state-key"
+  register: key_create
+  changed_when: "'Key ID' in key_create.stdout | default('')"
+  failed_when: key_create.rc != 0 and 'already exists' not in (key_create.stderr | default(''))
+
+- name: Выдать ключу права на бакет
+  ansible.builtin.command: >
+    garage bucket allow {{ garage_bucket }}
+    --read --write --owner --key tf-state-key
+  changed_when: false
+
+- name: Показать данные доступа (СКОПИРУЙ В terraform/infra)
+  ansible.builtin.debug:
+    msg: "{{ key_create.stdout_lines | default(['Ключ уже существовал — получи: garage key info tf-state-key --show-secret']) }}"
