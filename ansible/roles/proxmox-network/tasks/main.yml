@@ -1,0 +1,72 @@
+---
+- name: Сконфигурировать бриджи-шлюзы для зон доступности
+  ansible.builtin.copy:
+    dest: /etc/network/interfaces.d/zones.cfg
+    mode: "0644"
+    content: |
+      # Зоны доступности проекта (managed by Ansible) — НЕ из PVE GUI
+      auto vmbr10
+      iface vmbr10 inet static
+          address {{ zone_a_gw }}/24
+          bridge-ports none
+          bridge-stp off
+          bridge-fd 0
+      #zone-a
+
+      auto vmbr20
+      iface vmbr20 inet static
+          address {{ zone_b_gw }}/24
+          bridge-ports none
+          bridge-stp off
+          bridge-fd 0
+      #zone-b
+
+      auto vmbr30
+      iface vmbr30 inet static
+          address {{ zone_c_gw }}/24
+          bridge-ports none
+          bridge-stp off
+          bridge-fd 0
+      #zone-c
+  notify: reload networking
+
+- name: Включить IP forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Установить iptables-persistent для сохранения правил
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+    update_cache: true
+
+- name: NAT (masquerade) для подсетей зон через vmbr0
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ zones_supernet }}"
+    out_interface: vmbr0
+    jump: MASQUERADE
+    state: present
+  notify: save iptables
+
+- name: Разрешить форвардинг из зон наружу
+  ansible.builtin.iptables:
+    chain: FORWARD
+    source: "{{ zones_supernet }}"
+    jump: ACCEPT
+    state: present
+  notify: save iptables
+
+- name: Разрешить форвардинг ответов в зоны
+  ansible.builtin.iptables:
+    chain: FORWARD
+    destination: "{{ zones_supernet }}"
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+    state: present
+  notify: save iptables

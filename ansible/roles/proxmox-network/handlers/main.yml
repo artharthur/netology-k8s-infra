@@ -1,0 +1,7 @@
+---
+- name: reload networking
+  ansible.builtin.command: ifreload -a
+  changed_when: false
+- name: save iptables
+  ansible.builtin.command: netfilter-persistent save
+  changed_when: false

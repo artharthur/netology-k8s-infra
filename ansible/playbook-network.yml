@@ -1,0 +1,11 @@
+---
+- name: Настройка сетевых зон и NAT на ноде Proxmox
+  hosts: proxmox
+  become: true
+  vars:
+    zone_a_gw: "10.10.1.1"
+    zone_b_gw: "10.10.2.1"
+    zone_c_gw: "10.10.3.1"
+    zones_supernet: "10.10.0.0/16"
+  roles:
+    - proxmox-network
