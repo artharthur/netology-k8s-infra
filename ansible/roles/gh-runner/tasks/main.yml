@@ -90,3 +90,19 @@
     cmd: ./svc.sh start
     chdir: /home/runner/actions-runner
   when: not runner_configured.stat.exists
+
+- name: Создать каталог .kube для runner
+  ansible.builtin.file:
+    path: /home/runner/.kube
+    state: directory
+    owner: runner
+    group: runner
+    mode: "0700"
+
+- name: Скопировать kubeconfig в контейнер runner
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../kubeconfig"
+    dest: /home/runner/.kube/config
+    owner: runner
+    group: runner
+    mode: "0600"
