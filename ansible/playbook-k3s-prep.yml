@@ -1,0 +1,8 @@
+---
+- name: Подготовка LXC-контейнеров для k3s (на ноде Proxmox)
+  hosts: proxmox
+  become: true
+  vars:
+    k3s_ct_ids: [210, 211, 212]
+  roles:
+    - k3s-lxc-prep
