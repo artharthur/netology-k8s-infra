@@ -10,49 +10,38 @@ on:
       - 'v*'
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/test-app
+  REGISTRY: 10.10.1.20:5000
+  IMAGE_NAME: test-app
 
 jobs:
-  # CI: сборка и пуш образа — на облачных раннерах GitHub (есть docker.io)
   build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    runs-on: [self-hosted, k3s]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Determine tags
+      - name: Determine version
         id: meta
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-            echo "tags=${REGISTRY}/${IMAGE_NAME}:${VERSION},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
-            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${REGISTRY}/${IMAGE_NAME}:latest,${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
             echo "version=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            APP_VERSION=${{ steps.meta.outputs.version }}
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg APP_VERSION=${{ steps.meta.outputs.version }} \
+            -t ${REGISTRY}/${IMAGE_NAME}:${{ steps.meta.outputs.version }} \
+            -t ${REGISTRY}/${IMAGE_NAME}:latest \
+            ./app
 
-  # CD: деплой в кластер — только по тегу v*, на self-hosted runner (есть доступ к k3s)
+      - name: Push image
+        run: |
+          docker push ${REGISTRY}/${IMAGE_NAME}:${{ steps.meta.outputs.version }}
+          docker push ${REGISTRY}/${IMAGE_NAME}:latest
+
   deploy:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -61,14 +50,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set image version
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+      - name: Set version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
       - name: Deploy to k3s
         run: |
+          kubectl apply -f k8s/
           kubectl set image deployment/test-app \
-            test-app=ghcr.io/${{ github.repository }}/test-app:${VERSION} \
-            -n default || kubectl apply -f k8s/
+            test-app=${REGISTRY}/${IMAGE_NAME}:${VERSION} -n default
           kubectl rollout status deployment/test-app -n default --timeout=120s

@@ -1,0 +1,6 @@
+---
+- name: Локальный Docker Registry на runner-контейнере
+  hosts: runner
+  become: true
+  roles:
+    - registry

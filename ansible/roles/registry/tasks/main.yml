@@ -1,0 +1,47 @@
+---
+- name: Настроить docker на insecure registry
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "insecure-registries": ["10.10.1.20:5000"]
+      }
+  register: docker_daemon_cfg
+
+- name: Перезапустить docker при изменении конфига
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  when: docker_daemon_cfg.changed
+
+- name: Создать каталог данных registry
+  ansible.builtin.file:
+    path: /opt/registry/data
+    state: directory
+    mode: "0755"
+
+- name: Запустить локальный Docker Registry
+  ansible.builtin.shell: |
+    docker rm -f registry 2>/dev/null || true
+    docker run -d \
+      --name registry \
+      --restart always \
+      -p 5000:5000 \
+      -v /opt/registry/data:/var/lib/registry \
+      dockerhub.timeweb.cloud/library/registry:2
+  args:
+    creates: /opt/registry/.started
+
+- name: Отметить запуск
+  ansible.builtin.file:
+    path: /opt/registry/.started
+    state: touch
+    mode: "0644"
+
+- name: Проверить, что registry отвечает
+  ansible.builtin.uri:
+    url: http://localhost:5000/v2/
+    status_code: 200
+  retries: 5
+  delay: 3

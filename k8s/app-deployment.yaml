@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: test-app
-          image: ghcr.io/artharthur/netology-k8s-infra/test-app:latest
+          image: 10.10.1.20:5000/test-app:latest
           ports:
             - containerPort: 80
           livenessProbe:
@@ -39,5 +39,3 @@ spec:
             limits:
               cpu: 200m
               memory: 64Mi
-      imagePullSecrets:
-        - name: ghcr-pull

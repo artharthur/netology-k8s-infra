@@ -5,7 +5,7 @@
     state: directory
     mode: "0755"
 
-- name: Прописать зеркало Docker Hub для containerd (k3s)
+- name: Прописать зеркала и локальный registry для containerd (k3s)
   ansible.builtin.copy:
     dest: /etc/rancher/k3s/registries.yaml
     mode: "0644"
@@ -17,6 +17,13 @@
         registry.k3s.io:
           endpoint:
             - "https://dockerhub.timeweb.cloud"
+        "10.10.1.20:5000":
+          endpoint:
+            - "http://10.10.1.20:5000"
+      configs:
+        "10.10.1.20:5000":
+          tls:
+            insecure_skip_verify: true
 
 - name: Перезапустить k3s server
   ansible.builtin.systemd:
