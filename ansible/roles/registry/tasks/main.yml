@@ -1,11 +1,12 @@
 ---
-- name: Настроить docker на insecure registry
+- name: Настроить docker на insecure registry и зеркало docker.io
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     mode: "0644"
     content: |
       {
-        "insecure-registries": ["10.10.1.20:5000"]
+        "insecure-registries": ["10.10.1.20:5000"],
+        "registry-mirrors": ["https://dockerhub.timeweb.cloud"]
       }
   register: docker_daemon_cfg
 
