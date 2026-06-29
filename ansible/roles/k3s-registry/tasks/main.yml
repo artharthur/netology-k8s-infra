@@ -1,0 +1,31 @@
+---
+- name: Создать каталог конфигурации k3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+- name: Прописать зеркало Docker Hub для containerd (k3s)
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: "0644"
+    content: |
+      mirrors:
+        docker.io:
+          endpoint:
+            - "https://dockerhub.timeweb.cloud"
+        registry.k3s.io:
+          endpoint:
+            - "https://dockerhub.timeweb.cloud"
+
+- name: Перезапустить k3s server
+  ansible.builtin.systemd:
+    name: k3s
+    state: restarted
+  when: "'k3s_server' in group_names"
+
+- name: Перезапустить k3s agent
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  when: "'k3s_agents' in group_names"

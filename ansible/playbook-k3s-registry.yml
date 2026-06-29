@@ -1,0 +1,7 @@
+---
+- name: Настройка registry-зеркала для k3s
+  hosts: k3s_cluster
+  become: true
+  serial: 1
+  roles:
+    - k3s-registry
