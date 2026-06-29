@@ -78,3 +78,25 @@ variable "k3s_nodes" {
     }
   }
 }
+
+# GitHub Actions self-hosted runner для CI/CD
+variable "runner_node" {
+  type = object({
+    vm_id    = number
+    hostname = string
+    bridge   = string
+    ip       = string
+    gateway  = string
+    cores    = number
+    memory   = number
+  })
+  default = {
+    vm_id    = 220
+    hostname = "gh-runner"
+    bridge   = "vmbr10"
+    ip       = "10.10.1.20/24"
+    gateway  = "10.10.1.1"
+    cores    = 1
+    memory   = 1024
+  }
+}

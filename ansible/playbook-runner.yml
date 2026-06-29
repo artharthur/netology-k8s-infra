@@ -1,0 +1,11 @@
+---
+- name: Установка GitHub Actions self-hosted runner
+  hosts: runner
+  become: true
+  vars:
+    runner_version: "2.321.0"
+    github_repo: "artharthur/netology-k8s-infra"
+    runner_name: "gh-runner-k3s"
+    # runner_token передаётся через -e при запуске (одноразовый, не хранить в коде)
+  roles:
+    - gh-runner

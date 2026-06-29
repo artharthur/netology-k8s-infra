@@ -1,0 +1,92 @@
+---
+- name: Установить зависимости
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - tar
+      - sudo
+      - git
+    state: present
+    update_cache: true
+
+- name: Создать пользователя runner (не root — требование GitHub runner)
+  ansible.builtin.user:
+    name: runner
+    shell: /bin/bash
+    home: /home/runner
+    create_home: true
+
+- name: Создать каталог для runner
+  ansible.builtin.file:
+    path: /home/runner/actions-runner
+    state: directory
+    owner: runner
+    group: runner
+    mode: "0755"
+
+- name: Скопировать GitHub Actions runner на контейнер
+  ansible.builtin.copy:
+    src: actions-runner.tar.gz
+    dest: /home/runner/actions-runner/runner.tar.gz
+    owner: runner
+    group: runner
+    mode: "0644"
+
+- name: Распаковать runner
+  ansible.builtin.unarchive:
+    src: /home/runner/actions-runner/runner.tar.gz
+    dest: /home/runner/actions-runner
+    remote_src: true
+    owner: runner
+    group: runner
+    creates: /home/runner/actions-runner/config.sh
+
+- name: Скопировать kubectl на контейнер
+  ansible.builtin.copy:
+    src: kubectl
+    dest: /usr/local/bin/kubectl
+    mode: "0755"
+
+- name: Установить docker из репозитория Debian
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+    update_cache: true
+
+- name: Добавить runner в группу docker
+  ansible.builtin.user:
+    name: runner
+    groups: docker
+    append: true
+
+- name: Проверить, зарегистрирован ли уже runner
+  ansible.builtin.stat:
+    path: /home/runner/actions-runner/.runner
+  register: runner_configured
+
+- name: Зарегистрировать runner в репозитории
+  become: true
+  become_user: runner
+  ansible.builtin.command:
+    cmd: >
+      ./config.sh --unattended
+      --url https://github.com/{{ github_repo }}
+      --token {{ runner_token }}
+      --name {{ runner_name }}
+      --labels self-hosted,linux,x64,k3s
+      --work _work
+    chdir: /home/runner/actions-runner
+  when: not runner_configured.stat.exists
+
+- name: Установить runner как systemd-сервис
+  ansible.builtin.command:
+    cmd: ./svc.sh install runner
+    chdir: /home/runner/actions-runner
+  when: not runner_configured.stat.exists
+
+- name: Запустить сервис runner
+  ansible.builtin.command:
+    cmd: ./svc.sh start
+    chdir: /home/runner/actions-runner
+  when: not runner_configured.stat.exists
