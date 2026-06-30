@@ -20,3 +20,4 @@ kubeconfig
 ansible/roles/gh-runner/files/actions-runner.tar.gz
 ansible/roles/gh-runner/files/kubectl
 ansible/roles/gh-runner/files/terraform
+ansible/roles/gh-runner/files/tf-mirror/

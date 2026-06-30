@@ -112,3 +112,33 @@
     src: terraform
     dest: /usr/local/bin/terraform
     mode: "0755"
+
+- name: Создать каталог зеркала провайдеров Terraform
+  ansible.builtin.file:
+    path: /opt/tf-mirror
+    state: directory
+    mode: "0755"
+
+- name: Скопировать зеркало провайдеров Terraform на runner
+  ansible.builtin.copy:
+    src: tf-mirror/
+    dest: /opt/tf-mirror/
+    owner: runner
+    group: runner
+
+- name: Настроить terraform на filesystem mirror (нет доступа к registry.terraform.io)
+  ansible.builtin.copy:
+    dest: /home/runner/.terraformrc
+    owner: runner
+    group: runner
+    mode: "0644"
+    content: |
+      provider_installation {
+        filesystem_mirror {
+          path    = "/opt/tf-mirror"
+          include = ["*/*"]
+        }
+        direct {
+          exclude = ["*/*"]
+        }
+      }
