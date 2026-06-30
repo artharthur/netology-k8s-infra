@@ -29,3 +29,4 @@ terraform {
     use_path_style              = true
   }
 }
+# terraform pipeline via github actions (self-hosted runner)
