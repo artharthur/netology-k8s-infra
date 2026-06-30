@@ -19,3 +19,4 @@ ansible/roles/k3s/files/k3s
 kubeconfig
 ansible/roles/gh-runner/files/actions-runner.tar.gz
 ansible/roles/gh-runner/files/kubectl
+ansible/roles/gh-runner/files/terraform

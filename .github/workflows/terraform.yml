@@ -1,0 +1,36 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+
+jobs:
+  terraform:
+    runs-on: [self-hosted, k3s]
+    defaults:
+      run:
+        working-directory: terraform/infra
+    env:
+      TF_VAR_proxmox_endpoint: ${{ secrets.TF_PROXMOX_ENDPOINT }}
+      TF_VAR_proxmox_ssh_password: ${{ secrets.TF_PROXMOX_PASSWORD }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_S3_SECRET_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="access_key=${AWS_ACCESS_KEY_ID}" \
+            -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}"
+
+      - name: Terraform Plan
+        run: terraform plan -no-color
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -no-color

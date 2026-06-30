@@ -106,3 +106,9 @@
     owner: runner
     group: runner
     mode: "0600"
+
+- name: Скопировать terraform на runner
+  ansible.builtin.copy:
+    src: terraform
+    dest: /usr/local/bin/terraform
+    mode: "0755"
