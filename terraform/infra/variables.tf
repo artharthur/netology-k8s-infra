@@ -29,7 +29,7 @@ variable "lxc_datastore" {
 
 variable "ssh_public_key_path" {
   type    = string
-  default = "~/.ssh/id_rsa.pub"
+  default = "files/authorized_key.pub"
 }
 
 variable "project_pool" {
